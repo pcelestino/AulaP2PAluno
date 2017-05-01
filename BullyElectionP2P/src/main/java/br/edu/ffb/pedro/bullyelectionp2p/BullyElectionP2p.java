@@ -672,7 +672,7 @@ public class BullyElectionP2p implements WifiP2pManager.ConnectionInfoListener {
                         @Override
                         public void onSuccess() {
                             isConnectedToAnotherDevice = false;
-                            //deletePersistentGroup(group);
+                            deletePersistentGroup(group);
                             Log.d(TAG, "WiFi Direct Group Removido");
                         }
 
