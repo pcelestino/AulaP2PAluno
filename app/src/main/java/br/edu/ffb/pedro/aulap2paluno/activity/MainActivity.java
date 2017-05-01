@@ -34,6 +34,7 @@ import br.edu.ffb.pedro.aulap2paluno.model.Questionnaire;
 import br.edu.ffb.pedro.aulap2paluno.model.Quiz;
 import br.edu.ffb.pedro.aulap2paluno.model.QuizData;
 import br.edu.ffb.pedro.bullyelectionp2p.BullyElectionP2p;
+import br.edu.ffb.pedro.bullyelectionp2p.event.BullyElectionEvent;
 import br.edu.ffb.pedro.bullyelectionp2p.event.ClientEvent;
 import br.edu.ffb.pedro.bullyelectionp2p.event.DataTransferEvent;
 import br.edu.ffb.pedro.bullyelectionp2p.event.WifiP2pEvent;
@@ -51,6 +52,8 @@ public class MainActivity extends AppCompatActivity {
     private ProgressDialog progressDialog;
     private boolean isSentQuestionnarieEvent;
     private boolean isLogoutEvent;
+    private boolean aDataTransferFailureEventOccurred;
+    private Questionnaire questionnaire;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,9 +83,9 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton("Sim", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int arg1) {
                                 dialog.dismiss();
-                                Questionnaire questionnaire = getAppDaoSession()
+                                questionnaire = getAppDaoSession()
                                         .getQuestionnaireDao()
-                                        .load(Questionnaire.DEFAULT_QUESTIONNAIRE);
+                                        .load(bullyElectionP2p.thisDevice.id);
 
                                 if (questionnaire != null) {
                                     isSentQuestionnarieEvent = true;
@@ -177,10 +180,12 @@ public class MainActivity extends AppCompatActivity {
                         Toast.LENGTH_SHORT).show();
                 removeAllQuestionnaires();
                 setResult(RESULT_OK);
+                bullyElectionP2p.unregisterEventBus();
                 Utils.finishApp(MainActivity.this, new OnKillApp() {
                     @Override
                     public void call() {
                         EventBus.getDefault().post(new MessageEvent(MessageEvent.EXIT_APP));
+                        Log.d(BullyElectionP2p.TAG, "ENCERRANDO O APP: UNREGISTERED");
                         if (progressDialog.isShowing()) {
                             progressDialog.dismiss();
                         }
@@ -202,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
                             QuizData quizData = LoganSquare.parse(data, QuizData.class);
                             switch (quizData.message) {
                                 case QuizData.LOAD_QUIZ:
+                                    quizData.questionnaire.setId(bullyElectionP2p.thisDevice.id);
                                     quiz.addQuiz(quizContainer, quizData.questionnaire);
                                     if (bullyElectionP2p.thisDevice.isLeader) {
                                         bullyElectionP2p.sendToAllDevices(quizData);
@@ -214,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
                                                 bullyElectionP2p.thisDevice.readableName +
                                                 " recebeu um questionário");
 
-                                        Questionnaire questionnaire = quizData.questionnaire;
+                                        questionnaire = quizData.questionnaire;
                                         questionnaire = quiz.getQuizResult(questionnaire);
 
                                         quizData.message = QuizData.RESPONSE_QUIZ;
@@ -240,6 +246,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case DataTransferEvent.FAILURE:
                 Log.e(BullyElectionP2p.TAG, "Falha ao enviar os dados");
+                isSentQuestionnarieEvent = false;
+                aDataTransferFailureEventOccurred = true;
+                progressDialog.setTitle("Falha no envio");
+                progressDialog.setMessage("Iniciando um nova eleição");
                 break;
         }
     }
@@ -249,22 +259,50 @@ public class MainActivity extends AppCompatActivity {
         switch (wifiP2pEvent.event) {
             case WifiP2pEvent.DISCONNECTED_FROM_ANOTHER_DEVICE:
                 if (!isLogoutEvent) {
+                    // isLogoutEvent fica true, pois esse evento reinicia a Wifi e quando a Wifi é
+                    // desabilitada, o evento DISCONNECTED_FROM_ANOTHER_DEVICE é chamado, causando um loop
+                    isLogoutEvent = true;
                     Toast.makeText(MainActivity.this, "O professor desconectou",
                             Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
                     removeAllQuestionnaires();
+                    bullyElectionP2p.unregisterEventBus();
                     progressDialog.setTitle("Finalizando sessão...");
                     progressDialog.setMessage("Finalizando");
                     progressDialog.show();
-                    setResult(RESULT_OK);
                     Utils.finishApp(MainActivity.this, new OnKillApp() {
                         @Override
                         public void call() {
-                            Log.d(BullyElectionP2p.TAG, "ENCERRANDO O APP");
+                            Log.d(BullyElectionP2p.TAG, "ENCERRANDO O APP: DISCONNECTED_FROM_ANOTHER_DEVICE");
                             if (progressDialog.isShowing()) {
-                                progressDialog.hide();
+                                progressDialog.dismiss();
                             }
                         }
                     });
+                }
+                break;
+        }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onBullyElectionEvent(BullyElectionEvent bullyElectionEvent) {
+        switch (bullyElectionEvent.event) {
+            case BullyElectionEvent.ELECTED_LEADER:
+                Log.d(BullyElectionP2p.TAG, "Um novo líder foi eleito: "
+                        + bullyElectionEvent.device.readableName);
+                if (aDataTransferFailureEventOccurred) {
+                    aDataTransferFailureEventOccurred = false;
+                    isSentQuestionnarieEvent = true;
+                    Log.d(BullyElectionP2p.TAG, "Devido ao evento de falha no envio dos dados, " +
+                            "o app tentará enviar novamente");
+
+                    if (bullyElectionP2p.thisDevice.isLeader) {
+                        questionnaire = quiz.getQuizResult(questionnaire);
+                    }
+                    QuizData quizData = new QuizData();
+                    quizData.message = QuizData.RESPONSE_QUIZ;
+                    quizData.questionnaire = questionnaire;
+                    bullyElectionP2p.sendToHost(quizData);
                 }
                 break;
         }

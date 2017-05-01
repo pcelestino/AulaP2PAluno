@@ -17,6 +17,8 @@ import com.arasthel.asyncjob.AsyncJob;
 
 import br.edu.ffb.pedro.aulap2paluno.callback.OnKillApp;
 import br.edu.ffb.pedro.aulap2paluno.callback.OnStudentDialogClickOk;
+import br.edu.ffb.pedro.bullyelectionp2p.BullyElectionP2p;
+import br.edu.ffb.pedro.bullyelectionp2p.callback.OnWifiRestarted;
 
 public class Utils {
     public static void showToastLong(Context context, String message) {
@@ -28,42 +30,22 @@ public class Utils {
     }
 
     public static void finishApp(final AppCompatActivity activity, final OnKillApp onKillApp) {
-        AsyncJob.doInBackground(new AsyncJob.OnBackgroundJob() {
+        restartWifi(activity, new OnWifiRestarted() {
             @Override
-            public void doOnBackground() {
-                try {
-                    Thread.sleep(2000);
-                    AsyncJob.doOnMainThread(new AsyncJob.OnMainThreadJob() {
-                        @Override
-                        public void doInUIThread() {
-                            if (onKillApp != null) onKillApp.call();
-                            activity.finish();
-                            //android.os.Process.killProcess(android.os.Process.myPid());
-                        }
-                    });
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+            public void call() {
+                if (onKillApp != null) onKillApp.call();
+                activity.finish();
+                //android.os.Process.killProcess(android.os.Process.myPid());
             }
         });
     }
 
     public static void refreshApp(final AppCompatActivity activity, final OnKillApp onKillApp) {
-        AsyncJob.doInBackground(new AsyncJob.OnBackgroundJob() {
+        restartWifi(activity, new OnWifiRestarted() {
             @Override
-            public void doOnBackground() {
-                try {
-                    Thread.sleep(2000);
-                    AsyncJob.doOnMainThread(new AsyncJob.OnMainThreadJob() {
-                        @Override
-                        public void doInUIThread() {
-                            if (onKillApp != null) onKillApp.call();
-                            activity.recreate();
-                        }
-                    });
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+            public void call() {
+                if (onKillApp != null) onKillApp.call();
+                activity.recreate();
             }
         });
     }
@@ -142,5 +124,43 @@ public class Utils {
         });
 
         alertDialogAndroid.show();
+    }
+
+    private static void restartWifi(final Context context, final OnWifiRestarted onWifiRestarted) {
+
+        AsyncJob.doInBackground(new AsyncJob.OnBackgroundJob() {
+            @Override
+            public void doOnBackground() {
+                try {
+                    AsyncJob.doOnMainThread(new AsyncJob.OnMainThreadJob() {
+                        @Override
+                        public void doInUIThread() {
+                            BullyElectionP2p.disableWiFi(context);
+                        }
+                    });
+
+                    Thread.sleep(1000);
+
+
+                    AsyncJob.doOnMainThread(new AsyncJob.OnMainThreadJob() {
+                        @Override
+                        public void doInUIThread() {
+                            BullyElectionP2p.enableWiFi(context);
+                        }
+                    });
+
+                    Thread.sleep(8000);
+
+                    AsyncJob.doOnMainThread(new AsyncJob.OnMainThreadJob() {
+                        @Override
+                        public void doInUIThread() {
+                            onWifiRestarted.call();
+                        }
+                    });
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }

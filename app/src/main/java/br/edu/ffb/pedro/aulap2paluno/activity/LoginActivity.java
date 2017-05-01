@@ -216,7 +216,6 @@ public class LoginActivity extends AppCompatActivity implements OnProfessorsList
                         }
                     });
                 } else if (isRestartAppEvent) {
-                    Log.d(BullyElectionP2p.TAG, "Nome alterado");
                     Utils.refreshApp(LoginActivity.this, new OnKillApp() {
                         @Override
                         public void call() {
@@ -313,6 +312,7 @@ public class LoginActivity extends AppCompatActivity implements OnProfessorsList
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == RESTART_ACTIVITY_REQUEST) {
             if (resultCode == RESULT_OK) {
+                Log.d(BullyElectionP2p.TAG, "Reiniciando LoginActivity");
                 LoginActivity.this.recreate();
             }
         }

@@ -174,9 +174,6 @@ public class Quiz {
     }
 
     public Questionnaire getQuizResult(Questionnaire questionnaire) {
-        BullyElectionP2pDevice thisDevice = getThisDevice();
-        questionnaire.setId(thisDevice.id + 1);
-
         List<Question> questions = questionnaire.getQuestions();
         for (int i = 0; i < questions.size(); i++) {
             Question question = questions.get(i);
