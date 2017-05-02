@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -69,6 +70,8 @@ public class MainActivity extends AppCompatActivity {
 
         app = (AulaP2PAlunoApp) getApplication();
         bullyElectionP2p = app.getBullyElectionP2p();
+
+        setActionBarLeaderIcon();
 
         quizContainer = (LinearLayout) findViewById(R.id.quiz_container);
         quiz = new Quiz(this);
@@ -290,6 +293,9 @@ public class MainActivity extends AppCompatActivity {
             case BullyElectionEvent.ELECTED_LEADER:
                 Log.d(BullyElectionP2p.TAG, "Um novo líder foi eleito: "
                         + bullyElectionEvent.device.readableName);
+
+                setActionBarLeaderIcon();
+
                 if (aDataTransferFailureEventOccurred) {
                     aDataTransferFailureEventOccurred = false;
                     isSentQuestionnarieEvent = true;
@@ -311,6 +317,17 @@ public class MainActivity extends AppCompatActivity {
     public String getStudentName() {
         return getApplicationContext()
                 .getSharedPreferences(STUDENT_PREFERENCES, MODE_PRIVATE).getString(STUDENT_NAME, "");
+    }
+
+    private void setActionBarLeaderIcon() {
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            if (bullyElectionP2p.thisDevice.isLeader) {
+                actionBar.setIcon(R.drawable.ic_sheriff_enabled);
+            } else {
+                actionBar.setIcon(R.drawable.ic_sheriff_disabled);
+            }
+        }
     }
 
     @Override
