@@ -217,7 +217,11 @@ public class Quiz {
     private void saveQuestionnaire(Questionnaire questionnaire) {
         removeDefaultQuestionnaire();
         getAppDaoSession().getQuestionnaireDao().insertOrReplace(questionnaire);
-        getAppDaoSession().getQuestionDao().insertOrReplaceInTx(questionnaire.getQuestions(), false);
+        for (Question question :
+                questionnaire.getQuestions()) {
+            getAppDaoSession().getQuestionDao().insertOrReplace(question);
+        }
+//        getAppDaoSession().getQuestionDao().insertOrReplaceInTx(questionnaire.getQuestions(), false);
     }
 
     private void removeDefaultQuestionnaire() {
